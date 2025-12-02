@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class HaqiqaClient:
     """
     Client for interacting with the Haqiqa Arabic Fake News Detection API
-    Using Gradio Client: WalidAlsafadi/Haqiqa-Arabic-Fake-News-Detector
+    Using Gradio Client: ryuuuuuif/Haqiqa-unibyte
     """
     
     def __init__(self, space_name: str = None, timeout: int = None):
@@ -31,9 +31,9 @@ class HaqiqaClient:
             space_name: HuggingFace Space name
             timeout: Request timeout in seconds
         """
-        # Hardcoded API endpoint for production deployment
-        self.space_name = "WalidAlsafadi/Haqiqa-Arabic-Fake-News-Detector"
-        self.timeout = timeout or 30  # Hardcoded timeout
+        # Updated API endpoint for production deployment
+        self.space_name = space_name or Config.HAQIQA_SPACE_NAME
+        self.timeout = timeout or Config.REQUEST_TIMEOUT
         self.client = None
         
         # Initialize Gradio client

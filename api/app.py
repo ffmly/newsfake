@@ -179,6 +179,66 @@ Content-Type: application/json<br>
         </div>
         
         <div class="endpoint">
+            <h3>تحليل وسائل التواصل الاجتماعي <span class="method post">POST</span></h3>
+            <p><strong>/analyze/social-media</strong> - تحليل منشورات وسائل التواصل الاجتماعي</p>
+            
+            <h4>الطلب (Request):</h4>
+            <div class="example">
+                <code>
+POST /analyze/social-media<br>
+Content-Type: application/json<br>
+{<br>
+  "url": "https://twitter.com/user/status/123456789",<br>
+  "text": "Optional text content if already extracted",<br>
+  "include_explanation": true,<br>
+  "use_fallback": true<br>
+}
+                </code>
+            </div>
+            
+            <h4>الاستجابة (Response):</h4>
+            <div class="example">
+                <code>
+{<br>
+  "success": true,<br>
+  "result": {<br>
+    "social_media_processing": { ... },<br>
+    "risk_analysis": {<br>
+      "overall_risk_score": 0.75,<br>
+      "risk_level": "high",<br>
+      "haqiqa_score": 0.8,<br>
+      "feature_score": 0.7,<br>
+      "recommendation": "Social media content shows significant risk indicators..."<br>
+    },<br>
+    "explanation": { ... },<br>
+    "processing_time": 1.23<br>
+  }<br>
+}
+                </code>
+            </div>
+        </div>
+        
+        <div class="endpoint">
+            <h3>التحليل المجمّع لوسائل التواصل الاجتماعي <span class="method post">POST</span></h3>
+            <p><strong>/analyze/social-media/batch</strong> - تحليل عدة منشورات من وسائل التواصل الاجتماعي</p>
+            
+            <h4>الطلب (Request):</h4>
+            <div class="example">
+                <code>
+POST /analyze/social-media/batch<br>
+Content-Type: application/json<br>
+{<br>
+  "posts": [<br>
+    {"url": "https://twitter.com/user/status/123456789"},<br>
+    {"url": "https://www.instagram.com/p/CX123456789/"}<br>
+  ],<br>
+  "include_explanation": false<br>
+}
+                </code>
+            </div>
+        </div>
+        
+        <div class="endpoint">
             <h3>فحص النظام <span class="method get">GET</span></h3>
             <p><strong>/health</strong> - فحص حالة النظام والمكونات</p>
         </div>
@@ -250,6 +310,9 @@ result = response.json()
             <li>تقييم شامل للمخاطر مع شرح مفصل</li>
             <li>دعم RTL وواجهة عربية كاملة</li>
             <li>شرح القرارات باستخدام تقنيات LIME-like</li>
+            <li>تحليل محتوى وسائل التواصل الاجتماعي (Twitter, Instagram, Facebook)</li>
+            <li>إزالة الرموز التعبيرية والروابط والمحتوى غير المرغوب فيه</li>
+            <li>استخراج النص النقي من منشورات وسائل التواصل الاجتماعي</li>
         </ul>
     </div>
 </body>
@@ -470,6 +533,239 @@ def analyze_batch():
             'traceback': error_trace if app.debug else None
         }), 500
 
+@app.route('/analyze/social-media', methods=['POST'])
+def analyze_social_media():
+    """
+    Analyze social media content for fake news detection
+    
+    Expected JSON payload:
+    {
+        "url": "social media post URL",
+        "text": "optional text content if already extracted",
+        "include_explanation": true/false (default: true),
+        "use_fallback": true/false (default: true)
+    }
+    """
+    start_time = time.time()
+    
+    try:
+        # Get request data
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided',
+                'error_code': 'INVALID_REQUEST'
+            }), 400
+        
+        # Validate required fields
+        url = data.get('url', '').strip()
+        if not url:
+            return jsonify({
+                'success': False,
+                'error': 'URL field is required and cannot be empty',
+                'error_code': 'MISSING_URL'
+            }), 400
+        
+        # Get optional parameters
+        text = data.get('text', '').strip()
+        include_explanation = data.get('include_explanation', True)
+        use_fallback = data.get('use_fallback', True)
+        
+        # Validate URL format
+        if not (url.startswith('http://') or url.startswith('https://')):
+            return jsonify({
+                'success': False,
+                'error': 'URL must start with http:// or https://',
+                'error_code': 'INVALID_URL_FORMAT'
+            }), 400
+        
+        # Validate URL length
+        if len(url) > 2048:  # Standard URL length limit
+            return jsonify({
+                'success': False,
+                'error': 'URL cannot exceed 2048 characters',
+                'error_code': 'URL_TOO_LONG'
+            }), 400
+        
+        # Validate text length if provided
+        if text and len(text) > Config.MAX_TEXT_LENGTH:
+            return jsonify({
+                'success': False,
+                'error': f'Text cannot exceed {Config.MAX_TEXT_LENGTH} characters',
+                'error_code': 'TEXT_TOO_LONG'
+            }), 400
+        
+        # Prepare social media data
+        social_media_data = {
+            'url': url
+        }
+        if text:
+            social_media_data['text'] = text
+        
+        # Perform social media analysis
+        logger.info(f"Analyzing social media content from {url}")
+        result = prediction_engine.predict_social_media(
+            social_media_data, use_fallback, include_explanation
+        )
+        
+        # Add processing time
+        processing_time = time.time() - start_time
+        result['processing_time'] = processing_time
+        
+        # Log the analysis
+        logger.info(f"Social media analysis completed in {processing_time:.2f}s - Risk: {result.get('risk_analysis', {}).get('risk_level', 'unknown')}")
+        
+        return jsonify({
+            'success': True,
+            'result': result
+        })
+        
+    except Exception as e:
+        processing_time = time.time() - start_time
+        error_msg = str(e)
+        error_trace = traceback.format_exc()
+        
+        logger.error(f"Social media analysis failed after {processing_time:.2f}s: {error_msg}")
+        logger.error(f"Error trace: {error_trace}")
+        
+        return jsonify({
+            'success': False,
+            'error': error_msg,
+            'error_code': 'SOCIAL_MEDIA_ANALYSIS_FAILED',
+            'processing_time': processing_time,
+            'traceback': error_trace if app.debug else None
+        }), 500
+
+@app.route('/analyze/social-media/batch', methods=['POST'])
+def analyze_social_media_batch():
+    """
+    Analyze multiple social media posts for fake news detection
+    
+    Expected JSON payload:
+    {
+        "posts": [
+            {"url": "url1", "text": "optional text1"},
+            {"url": "url2", "text": "optional text2"}
+        ],
+        "include_explanation": true/false (default: false)
+    }
+    """
+    start_time = time.time()
+    
+    try:
+        # Get request data
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided',
+                'error_code': 'INVALID_REQUEST'
+            }), 400
+        
+        # Validate required fields
+        posts = data.get('posts', [])
+        if not posts or not isinstance(posts, list):
+            return jsonify({
+                'success': False,
+                'error': 'posts field is required and must be an array',
+                'error_code': 'INVALID_POSTS'
+            }), 400
+        
+        # Validate batch size
+        if len(posts) > 50:  # Limit batch size for social media
+            return jsonify({
+                'success': False,
+                'error': 'Batch size cannot exceed 50 social media posts',
+                'error_code': 'BATCH_TOO_LARGE'
+            }), 400
+        
+        # Validate each post
+        for i, post in enumerate(posts):
+            if not isinstance(post, dict):
+                return jsonify({
+                    'success': False,
+                    'error': f'Post at index {i} must be an object',
+                    'error_code': 'INVALID_POST_FORMAT'
+                }), 400
+            
+            url = post.get('url', '').strip()
+            if not url:
+                return jsonify({
+                    'success': False,
+                    'error': f'Post at index {i} must have a URL',
+                    'error_code': 'MISSING_URL_IN_POST'
+                }), 400
+            
+            if not (url.startswith('http://') or url.startswith('https://')):
+                return jsonify({
+                    'success': False,
+                    'error': f'URL at index {i} must start with http:// or https://',
+                    'error_code': 'INVALID_URL_FORMAT'
+                }), 400
+            
+            if len(url) > 2048:
+                return jsonify({
+                    'success': False,
+                    'error': f'URL at index {i} cannot exceed 2048 characters',
+                    'error_code': 'URL_TOO_LONG'
+                }), 400
+        
+        # Get optional parameters
+        include_explanation = data.get('include_explanation', False)
+        use_fallback = data.get('use_fallback', True)
+        
+        # Perform batch social media analysis
+        logger.info(f"Analyzing batch of {len(posts)} social media posts")
+        results = []
+        
+        for i, post in enumerate(posts):
+            logger.info(f"Processing social media post {i+1}/{len(posts)}")
+            result = prediction_engine.predict_social_media(
+                post, use_fallback, include_explanation
+            )
+            result['batch_index'] = i
+            results.append(result)
+        
+        # Add processing time
+        processing_time = time.time() - start_time
+        
+        # Create response
+        response = {
+            'success': True,
+            'batch_size': len(posts),
+            'processing_time': processing_time,
+            'results': results,
+            'summary': {
+                'total_processed': len(results),
+                'successful_analyses': sum(1 for r in results if r.get('success', False)),
+                'failed_analyses': sum(1 for r in results if not r.get('success', False)),
+                'avg_processing_time': processing_time / len(posts)
+            }
+        }
+        
+        logger.info(f"Batch social media analysis completed in {processing_time:.2f}s - {len(posts)} posts processed")
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        processing_time = time.time() - start_time
+        error_msg = str(e)
+        error_trace = traceback.format_exc()
+        
+        logger.error(f"Batch social media analysis failed after {processing_time:.2f}s: {error_msg}")
+        logger.error(f"Error trace: {error_trace}")
+        
+        return jsonify({
+            'success': False,
+            'error': error_msg,
+            'error_code': 'BATCH_SOCIAL_MEDIA_ANALYSIS_FAILED',
+            'processing_time': processing_time,
+            'traceback': error_trace if app.debug else None
+        }), 500
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """
@@ -644,6 +940,8 @@ def not_found(error):
             'GET /',
             'POST /analyze',
             'POST /analyze/batch',
+            'POST /analyze/social-media',
+            'POST /analyze/social-media/batch',
             'GET /health',
             'GET /stats',
             'GET /features'

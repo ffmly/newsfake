@@ -11,8 +11,9 @@ class Config:
     """Configuration class for the fake news detection system"""
     
     # API Configuration
-    HAQIQA_API_URL = os.getenv('HAQIQA_API_URL', 'https://haqiqa-api.example.com/predict')
-    HAQIQA_API_KEY = os.getenv('HAQIQA_API_KEY', '')
+    HAQIQA_SPACE_NAME = os.getenv('HAQIQA_SPACE_NAME', 'ryuuuuuif/Haqiqa-unibyte')
+    HAQIQA_API_URL = os.getenv('HAQIQA_API_URL', 'https://huggingface.co/spaces/ryuuuuuif/Haqiqa-unibyte')
+    HAQIQA_API_KEY = os.getenv('HAQIQA_API_KEY', '')  # Not needed for Gradio client but kept for compatibility
     REQUEST_TIMEOUT = int(os.getenv('REQUEST_TIMEOUT', '30'))
     
     # Feature Extraction Settings

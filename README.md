@@ -6,6 +6,9 @@ A sophisticated Arabic fake news detection system that leverages advanced machin
 
 - **Multi-Model Support**: Choose between AraBERT (transformer-based) and XGBoost (traditional ML) models
 - **Real-Time Analysis**: Instant text classification with confidence scores
+- **Social Media Integration**: Analyze content from Twitter/X, Instagram, and Facebook posts
+- **Content Extraction**: Automatically extract text from social media URLs for analysis
+- **Batch Processing**: Analyze multiple texts or social media posts at once
 - **Performance Metrics**: View accuracy, F1 score, precision, and recall for each model
 - **Arabic Text Processing**: Specialized preprocessing for Arabic and Darija dialects
 - **Modern Web Interface**: Clean, responsive design with light purple theme
@@ -19,6 +22,8 @@ A sophisticated Arabic fake news detection system that leverages advanced machin
 - **Scikit-learn**: Machine learning utilities
 - **NumPy/Pandas**: Data processing and manipulation
 - **NLTK**: Natural language processing
+- **BeautifulSoup**: Web scraping for social media content extraction
+- **Requests**: HTTP client for API calls and web scraping
 - **Arabic Text Processing**: Specialized libraries for Arabic script handling
 
 ### Models & Algorithms
@@ -43,8 +48,8 @@ A sophisticated Arabic fake news detection system that leverages advanced machin
 
 1. **Clone the repository**
    ```bash
-   [git clone (https://github.com/ffmly/newsfake.git)
-   cd newsfake
+   git clone https://github.com/yourusername/haqiqa-by-unibyte.git
+   cd haqiqa-by-unibyte
    ```
 
 2. **Install dependencies**
@@ -73,7 +78,8 @@ A sophisticated Arabic fake news detection system that leverages advanced machin
 ```
 haqiqa-by-unibyte/
 ├── api/                    # Flask API server
-│   └── app.py             # Main API endpoints
+│   ├── app.py             # Main API endpoints
+│   └── vercel.py          # Vercel serverless handler
 ├── web/                    # Web interface
 │   ├── simple.html         # Frontend interface
 │   └── simple_server.py    # Web server
@@ -82,9 +88,11 @@ haqiqa-by-unibyte/
 │   ├── features/           # Feature extraction modules
 │   ├── ml_wrapper/        # ML model wrapper
 │   ├── preprocessing/      # Text preprocessing
+│   ├── social_media/       # Social media content extraction
 │   └── utils/             # Utility functions
 ├── tests/                  # Test suite
 ├── requirements.txt         # Python dependencies
+├── vercel.json            # Vercel configuration
 └── README.md             # This file
 ```
 
@@ -114,6 +122,81 @@ Our models have been trained and evaluated on extensive Arabic news datasets:
 2. **Select Model**: Choose between AraBERT or XGBoost
 3. **Analyze**: Click the analyze button to get classification
 4. **View Results**: See prediction, confidence, and performance metrics
+
+### Social Media Analysis
+1. **Enter Social Media URL**: Paste Twitter/X, Instagram, or Facebook post URL
+2. **Optional Text**: Add text content if already extracted (optional)
+3. **Select Model**: Choose between AraBERT or XGBoost
+4. **Analyze**: Click analyze to extract and analyze social media content
+5. **View Results**: See prediction, confidence, and content extraction details
+
+### API Usage
+```bash
+# Analyze text
+curl -X POST http://localhost:5000/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"text": "هذا خبر عاجل جدا", "include_explanation": true}'
+
+# Analyze social media post
+curl -X POST http://localhost:5000/analyze/social-media \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://twitter.com/user/status/123456789"}'
+
+# Batch analysis
+curl -X POST http://localhost:5000/analyze/batch \
+
+## 🌐 API Endpoints
+
+### Core Analysis Endpoints
+- `POST /analyze` - Analyze single text for fake news
+- `POST /analyze/batch` - Analyze multiple texts
+- `GET /health` - System health check
+- `GET /stats` - Performance statistics
+- `GET /features` - Feature information
+
+### Social Media Endpoints
+- `POST /analyze/social-media` - Analyze social media post from URL
+- `POST /analyze/social-media/batch` - Analyze multiple social media posts
+
+### Social Media Request Format
+```json
+{
+  "url": "https://twitter.com/user/status/123456789",
+  "text": "Optional pre-extracted text",
+  "include_explanation": true,
+  "use_fallback": true
+}
+```
+
+### Response Format
+```json
+{
+  "success": true,
+  "result": {
+    "social_media_processing": {
+      "platform": "twitter",
+      "extraction_method": "direct_scraping",
+      "original_content": "Extracted tweet content",
+      "cleaned_content": "Cleaned text for analysis"
+    },
+    "risk_analysis": {
+      "overall_risk_score": 0.75,
+      "risk_level": "high",
+      "haqiqa_score": 0.8,
+      "feature_score": 0.7
+    }
+  }
+}
+```
+  -H "Content-Type: application/json" \
+  -d '{"texts": ["نص الأول", "نص الثاني"]}'
+```
+
+### Supported Social Media Platforms
+- **Twitter/X**: Full tweet extraction with metadata
+- **Instagram**: Post caption and description extraction
+- **Facebook**: Post content and metadata extraction
+- **Fallback Methods**: Alternative extraction services when direct scraping fails
 
 ## 🧪 Testing
 
