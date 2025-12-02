@@ -4,7 +4,7 @@ A sophisticated Arabic fake news detection system that leverages advanced machin
 
 ## 🚀 Features
 
-- **Multi-Model Support**: Choose between AraBERT (transformer-based) and XGBoost (traditional ML) models
+-    XGBoost (traditional ML) models
 - **Real-Time Analysis**: Instant text classification with confidence scores
 - **Social Media Integration**: Analyze content from Twitter/X, Instagram, and Facebook posts
 - **Content Extraction**: Automatically extract text from social media URLs for analysis
