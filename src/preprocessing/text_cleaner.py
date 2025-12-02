@@ -47,6 +47,29 @@ class TextCleaner:
         self.mention_pattern = re.compile(r'@\w+')
         self.hashtag_pattern = re.compile(r'#\w+')
         
+        # Enhanced emoji patterns
+        self.emoji_pattern = re.compile(
+            '['
+            '\U0001F600-\U0001F64F'  # emoticons
+            '\U0001F300-\U0001F5FF'  # symbols & pictographs
+            '\U0001F680-\U0001F6FF'  # transport & map symbols
+            '\U0001F1E0-\U0001F1FF'  # flags (iOS)
+            '\U00002702-\U000027B0'  # dingbats
+            '\U000024C2-\U0001F251'  # enclosed characters
+            '\U0001F900-\U0001F9FF'  # supplemental symbols
+            '\U0001FA70-\U0001FAFF'  # symbols and pictographs extended
+            ']+', flags=re.UNICODE
+        )
+        
+        # Social media specific patterns
+        self.social_media_patterns = {
+            'instagram_tags': re.compile(r'#[\w]+'),
+            'twitter_handles': re.compile(r'@[\w]+'),
+            'tiktok_sounds': re.compile(r'♬ [\w\s]+'),
+            'facebook_reactions': re.compile(r'👍|👎|❤️|😂|😮|😢|😡'),
+            'instagram_stories': re.compile(r'👤|📍|🎵|📷|🎥|🎬|🎮|🎯|🎪|🎭|🎨|🎸|🎺|🎻|🥁|🎹|🎧|🎤|🎙️|🎚️|🎛️|📻|📱|📲|💻|🖥️|⌨️|🖱️|🖨️|📠|📞|☎️|📟|📱|📲|📞|☎️|📟|📠|📱|📲|📞|☎️|📟|📠')
+        }
+        
         # Numbers and special patterns
         self.number_pattern = re.compile(r'\d+')
         self.email_pattern = re.compile(r'\S+@\S+\.\S+')
@@ -151,6 +174,11 @@ class TextCleaner:
             cleaned = self.hashtag_pattern.sub(' ', cleaned)
             changes.append('removed_hashtags')
         
+        # Remove emojis
+        if self.emoji_pattern.search(cleaned):
+            cleaned = self.emoji_pattern.sub(' ', cleaned)
+            changes.append('removed_emojis')
+        
         # Language-specific normalization
         if language in ['arabic', 'darija']:
             cleaned = self._normalize_arabic(cleaned, changes)
@@ -179,7 +207,10 @@ class TextCleaner:
         cleaned = self.email_pattern.sub(' ', cleaned)
         cleaned = self.mention_pattern.sub(' ', cleaned)
         cleaned = self.hashtag_pattern.sub(' ', cleaned)
-        changes.extend(['removed_urls', 'removed_emails', 'removed_mentions', 'removed_hashtags'])
+        changes.extend(['removed_urls', 'removed_emails', 'removed_mentions', 'removed_hashtags', 'removed_emojis'])
+        
+        # Remove emojis aggressively
+        cleaned = self.emoji_pattern.sub(' ', cleaned)
         
         # Remove all numbers
         if self.number_pattern.search(cleaned):
@@ -398,3 +429,123 @@ class TextCleaner:
         cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
         
         return cleaned_text
+    
+    def clean_social_media_text(self, text: str, platform: str = None) -> Dict:
+        """
+        Clean social media text specifically for fake news detection
+        
+        Args:
+            text: Social media text to clean
+            platform: Platform type (instagram, facebook, twitter, tiktok, etc.)
+            
+        Returns:
+            Dictionary containing cleaned social media text and metadata
+        """
+        if not text or not text.strip():
+            return {
+                'original_text': text,
+                'cleaned_text': '',
+                'platform': platform,
+                'changes_made': [],
+                'statistics': {}
+            }
+        
+        original_text = text
+        changes_made = []
+        cleaned = text
+        
+        # Remove URLs aggressively
+        if self.url_pattern.search(cleaned):
+            cleaned = self.url_pattern.sub(' ', cleaned)
+            changes_made.append('removed_urls')
+        
+        # Remove emojis and special characters
+        if self.emoji_pattern.search(cleaned):
+            cleaned = self.emoji_pattern.sub(' ', cleaned)
+            changes_made.append('removed_emojis')
+        
+        # Platform-specific cleaning
+        if platform == 'instagram':
+            # Remove Instagram-specific elements
+            cleaned = self.social_media_patterns['instagram_tags'].sub(' ', cleaned)
+            cleaned = self.social_media_patterns['instagram_stories'].sub(' ', cleaned)
+            changes_made.append('cleaned_instagram_elements')
+            
+        elif platform == 'twitter':
+            # Remove Twitter-specific elements
+            cleaned = self.social_media_patterns['twitter_handles'].sub(' ', cleaned)
+            changes_made.append('cleaned_twitter_handles')
+            
+        elif platform == 'facebook':
+            # Remove Facebook reactions
+            cleaned = self.social_media_patterns['facebook_reactions'].sub(' ', cleaned)
+            changes_made.append('cleaned_facebook_reactions')
+            
+        elif platform == 'tiktok':
+            # Remove TikTok-specific elements
+            cleaned = self.social_media_patterns['tiktok_sounds'].sub(' ', cleaned)
+            changes_made.append('cleaned_tiktok_sounds')
+        
+        # Remove mentions and hashtags
+        if self.mention_pattern.search(cleaned):
+            cleaned = self.mention_pattern.sub(' ', cleaned)
+            changes_made.append('removed_mentions')
+        
+        if self.hashtag_pattern.search(cleaned):
+            cleaned = self.hashtag_pattern.sub(' ', cleaned)
+            changes_made.append('removed_hashtags')
+        
+        # Remove emails
+        if self.email_pattern.search(cleaned):
+            cleaned = self.email_pattern.sub(' ', cleaned)
+            changes_made.append('removed_emails')
+        
+        # Remove extra whitespace
+        cleaned = self.whitespace_pattern.sub(' ', cleaned).strip()
+        
+        # Calculate statistics
+        stats = self._calculate_text_statistics(original_text, cleaned)
+        
+        return {
+            'original_text': original_text,
+            'cleaned_text': cleaned,
+            'platform': platform,
+            'changes_made': changes_made,
+            'statistics': stats
+        }
+    
+    def extract_text_only(self, text: str) -> str:
+        """
+        Extract only meaningful text content from social media posts
+        Removes URLs, emojis, mentions, hashtags, and other social media artifacts
+        
+        Args:
+            text: Social media text
+            
+        Returns:
+            Clean text content only
+        """
+        if not text or not text.strip():
+            return ""
+        
+        # Remove URLs
+        cleaned = self.url_pattern.sub(' ', text)
+        
+        # Remove emojis
+        cleaned = self.emoji_pattern.sub(' ', cleaned)
+        
+        # Remove mentions and hashtags
+        cleaned = self.mention_pattern.sub(' ', cleaned)
+        cleaned = self.hashtag_pattern.sub(' ', cleaned)
+        
+        # Remove emails
+        cleaned = self.email_pattern.sub(' ', cleaned)
+        
+        # Remove social media specific patterns
+        for pattern_name, pattern in self.social_media_patterns.items():
+            cleaned = pattern.sub(' ', cleaned)
+        
+        # Remove extra whitespace and normalize
+        cleaned = self.whitespace_pattern.sub(' ', cleaned).strip()
+        
+        return cleaned

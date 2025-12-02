@@ -20,6 +20,7 @@ from ..features.sentiment_features import SentimentFeatures
 from ..features.fake_news_lexicon import FakeNewsLexicon
 from .risk_scorer import RiskScorer
 from .feature_combiner import FeatureCombiner
+from ..social_media.scraper import SocialMediaScraper
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -61,11 +62,126 @@ class PredictionEngine:
         self.risk_scorer = RiskScorer()
         self.feature_combiner = FeatureCombiner()
         
+        # Social media scraper
+        self.social_media_scraper = SocialMediaScraper()
+        
         # TF-IDF fitting status
         self.tfidf_fitted = False
         
         # Performance tracking
         self.prediction_history = []
+    
+    def predict_social_media(self, social_media_data: Dict, use_fallback: bool = True,
+                           include_explanation: bool = True) -> Dict:
+        """
+        Predict fake news for social media content
+        
+        Args:
+            social_media_data: Dictionary containing 'url' and optionally 'text'
+            use_fallback: Whether to use fallback models
+            include_explanation: Whether to include explanation
+            
+        Returns:
+            Dictionary containing prediction results
+        """
+        start_time = time.time()
+        
+        try:
+            # Process social media content
+            social_result = self.social_media_scraper.process_social_media_post(social_media_data)
+            
+            if not social_result['success']:
+                return {
+                    'input_data': social_media_data,
+                    'error': social_result['error'],
+                    'success': False,
+                    'timestamp': time.time(),
+                    'processing_time': time.time() - start_time
+                }
+            
+            # Extract cleaned text for analysis
+            text_to_analyze = social_result['text_only']
+            
+            if not text_to_analyze or len(text_to_analyze.strip()) < 10:
+                return {
+                    'input_data': social_media_data,
+                    'social_media_processing': social_result,
+                    'error': 'Insufficient text content for analysis after cleaning',
+                    'success': False,
+                    'timestamp': time.time(),
+                    'processing_time': time.time() - start_time
+                }
+            
+            # Get language information
+            language_result = social_result.get('language_analysis', {})
+            primary_language = language_result.get('primary_language', 'unknown')
+            
+            # Step 1: Text preprocessing (already done, but ensure consistency)
+            clean_result = self.text_cleaner.clean_text(text_to_analyze, primary_language, level='standard')
+            cleaned_text = clean_result['cleaned_text']
+            
+            # Step 2: Feature extraction
+            feature_results = self._extract_all_features(text_to_analyze, cleaned_text, primary_language)
+            
+            # Step 3: Haqiqa API prediction
+            haqiqa_result = self._get_haqiqa_prediction(cleaned_text, use_fallback)
+            
+            # Step 4: TF-IDF similarity (if fitted)
+            tfidf_similarity = self._compute_tfidf_similarity(cleaned_text)
+            
+            # Step 5: Risk scoring
+            risk_analysis = self.risk_scorer.compute_risk_score(
+                haqiqa_result, feature_results, tfidf_similarity
+            )
+            
+            # Step 6: Generate explanation
+            explanation = None
+            if include_explanation:
+                explanation = self._generate_social_media_explanation(
+                    social_media_data, social_result, language_result,
+                    feature_results, haqiqa_result, risk_analysis
+                )
+            
+            # Step 7: Compile results
+            processing_time = time.time() - start_time
+            
+            result = {
+                'input_data': social_media_data,
+                'social_media_processing': social_result,
+                'language_analysis': language_result,
+                'preprocessing': clean_result,
+                'feature_analysis': feature_results,
+                'haqiqa_prediction': haqiqa_result,
+                'tfidf_similarity': tfidf_similarity,
+                'risk_analysis': risk_analysis,
+                'explanation': explanation,
+                'processing_time': processing_time,
+                'timestamp': time.time(),
+                'success': True
+            }
+            
+            # Track prediction
+            self.prediction_history.append({
+                'timestamp': result['timestamp'],
+                'risk_score': risk_analysis['overall_risk_score'],
+                'risk_level': risk_analysis['risk_level'],
+                'language': primary_language,
+                'processing_time': processing_time,
+                'type': 'social_media'
+            })
+            
+            logger.info(f"Social media prediction completed in {processing_time:.2f}s - Risk: {risk_analysis['risk_level']}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Social media prediction failed: {str(e)}")
+            return {
+                'input_data': social_media_data,
+                'error': str(e),
+                'success': False,
+                'timestamp': time.time(),
+                'processing_time': time.time() - start_time
+            }
     
     def predict_single(self, text: str, use_fallback: bool = True,
                       include_explanation: bool = True) -> Dict:
@@ -363,6 +479,98 @@ class PredictionEngine:
             explanation['language_insights'] = {
                 'script_type': 'Arabic script' if primary_language == 'arabic' else 'Mixed script (Darija)',
                 'code_switching': language_result.get('is_code_switched', False)
+            }
+        
+        return explanation
+    
+    def _generate_social_media_explanation(self, social_media_data: Dict, social_result: Dict,
+                                         language_result: Dict, feature_results: Dict,
+                                         haqiqa_result: Dict, risk_analysis: Dict) -> Dict:
+        """Generate comprehensive explanation for social media content"""
+        explanation = {
+            'summary': '',
+            'key_factors': [],
+            'social_media_insights': {},
+            'language_analysis': language_result,
+            'feature_highlights': {},
+            'recommendations': []
+        }
+        
+        # Social media specific insights
+        platform = social_result.get('platform', 'unknown')
+        changes_made = social_result.get('metadata', {}).get('changes_made', [])
+        
+        explanation['social_media_insights'] = {
+            'platform': platform,
+            'url': social_media_data.get('url', ''),
+            'content_type': 'social_media_post',
+            'cleaning_performed': changes_made,
+            'original_length': social_result.get('metadata', {}).get('statistics', {}).get('original_length', 0),
+            'cleaned_length': social_result.get('metadata', {}).get('statistics', {}).get('cleaned_length', 0)
+        }
+        
+        # Main summary
+        risk_level = risk_analysis['risk_level']
+        confidence = risk_analysis.get('confidence_interval', {})
+        
+        explanation['summary'] = (
+            f"This {platform} social media post is classified as {risk_level} risk for being fake news. "
+            f"The confidence interval is [{confidence.get('lower_bound', 0):.2f}, "
+            f"{confidence.get('upper_bound', 1):.2f}]. "
+            f"After removing social media artifacts (URLs, emojis, mentions, hashtags), "
+            f"the core content was analyzed for authenticity."
+        )
+        
+        # Key risk factors
+        risk_factors = risk_analysis.get('risk_factors', [])
+        explanation['key_factors'] = risk_factors[:5]  # Top 5 factors
+        
+        # Feature highlights
+        lexicon_features = feature_results.get('lexicon_features', {})
+        if lexicon_features:
+            dominant_indicators = self.lexicon_features.get_dominant_indicators(
+                social_result['text_only']
+            )
+            explanation['feature_highlights']['lexicon'] = dominant_indicators
+        
+        sentiment_features = feature_results.get('sentiment_features', {})
+        if sentiment_features:
+            sentiment_label = self.sentiment_features.get_sentiment_label(
+                social_result['text_only']
+            )
+            dominant_emotion = self.sentiment_features.get_dominant_emotion(
+                social_result['text_only']
+            )
+            explanation['feature_highlights']['sentiment'] = {
+                'label': sentiment_label,
+                'dominant_emotion': dominant_emotion
+            }
+        
+        # Recommendations
+        recommendations = risk_analysis.get('recommendation', '')
+        explanation['recommendations'] = [recommendations]
+        
+        # Add social media specific recommendations
+        if platform == 'twitter':
+            explanation['recommendations'].append(
+                "Consider checking the original tweet for replies, retweets, and engagement patterns."
+            )
+        elif platform == 'instagram':
+            explanation['recommendations'].append(
+                "Check the post's comments, likes, and the account's verification status."
+            )
+        elif platform == 'facebook':
+            explanation['recommendations'].append(
+                "Review the post's shares, reactions, and check if it's from a credible source."
+            )
+        
+        # Add language-specific insights
+        primary_language = language_result.get('primary_language', 'unknown')
+        if primary_language in ['arabic', 'darija']:
+            explanation['language_insights'] = {
+                'script_type': 'Arabic script' if primary_language == 'arabic' else 'Mixed script (Darija)',
+                'code_switching': language_result.get('is_code_switched', False),
+                'social_media_linguistics': 'Contains social media specific language patterns'
             }
         
         return explanation
