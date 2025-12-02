@@ -31,8 +31,9 @@ class HaqiqaClient:
             space_name: HuggingFace Space name
             timeout: Request timeout in seconds
         """
-        self.space_name = space_name or "WalidAlsafadi/Haqiqa-Arabic-Fake-News-Detector"
-        self.timeout = timeout or Config.REQUEST_TIMEOUT
+        # Hardcoded API endpoint for production deployment
+        self.space_name = "WalidAlsafadi/Haqiqa-Arabic-Fake-News-Detector"
+        self.timeout = timeout or 30  # Hardcoded timeout
         self.client = None
         
         # Initialize Gradio client

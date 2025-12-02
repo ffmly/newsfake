@@ -1,5 +1,5 @@
 """
-Simple HTTP server for the Arabic Fake News Detector web interface
+Simple HTTP server for Arabic Fake News Detector web interface
 """
 
 import os
@@ -10,12 +10,14 @@ from flask_cors import CORS
 # Add src directory to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from src.api_client.haqiqa_client import HaqiqaClient
+from src.social_media.scraper import SocialMediaScraper
 
 app = Flask(__name__)
 CORS(app)
 
-# Initialize the Haqiqa client
+# Initialize Haqiqa client and social media scraper with hardcoded configuration
 haqiqa_client = HaqiqaClient()
+social_scraper = SocialMediaScraper()
 
 @app.route('/')
 def index():
@@ -28,24 +30,77 @@ def analyze_text():
     try:
         data = request.get_json()
         
-        if not data or 'text' not in data:
-            return jsonify({'error': 'No text provided'}), 400
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
         
-        text = data['text']
-        model = data.get('model', 'arabert')
+        # Handle both direct text and social media URL analysis
+        if 'text' in data:
+            text = data['text']
+            model = data.get('model', 'arabert')
+            
+            # Use the Haqiqa client to analyze text
+            result = haqiqa_client.predict(text, model)
+            
+            if result.get('error'):
+                return jsonify({'error': result.get('message', 'Analysis failed')}), 500
+            
+            # Return prediction result
+            return jsonify({
+                'prediction': result.get('prediction', 'Unknown'),
+                'confidence': result.get('confidence', 0.0),
+                'model_used': result.get('model_used', model),
+                'input_type': 'text'
+            })
         
-        # Use the Haqiqa client to analyze the text
-        result = haqiqa_client.predict(text, model)
+        elif 'url' in data:
+            url = data['url']
+            model = data.get('model', 'arabert')
+            
+            # Extract content from social media URL
+            social_result = social_scraper.extract_content_from_url(url)
+            
+            if not social_result.get('success'):
+                return jsonify({'error': social_result.get('error', 'Failed to extract content from URL')}), 400
+            
+            # Analyze extracted content
+            text = social_result.get('content', '')
+            result = haqiqa_client.predict(text, model)
+            
+            if result.get('error'):
+                return jsonify({'error': result.get('message', 'Analysis failed')}), 500
+            
+            # Return prediction result with social media info
+            return jsonify({
+                'prediction': result.get('prediction', 'Unknown'),
+                'confidence': result.get('confidence', 0.0),
+                'model_used': result.get('model_used', model),
+                'input_type': 'social_media',
+                'social_media': {
+                    'platform': social_result.get('platform'),
+                    'url': url,
+                    'extracted_content': text
+                }
+            })
         
-        if result.get('error'):
-            return jsonify({'error': result.get('message', 'Analysis failed')}), 500
+        else:
+            return jsonify({'error': 'No text or URL provided'}), 400
         
-        # Return the prediction result
-        return jsonify({
-            'prediction': result.get('prediction', 'Unknown'),
-            'confidence': result.get('confidence', 0.0),
-            'model_used': result.get('model_used', model)
-        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/validate-url', methods=['POST'])
+def validate_url():
+    """Validate social media URL"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'url' not in data:
+            return jsonify({'error': 'No URL provided'}), 400
+        
+        url = data['url']
+        validation = social_scraper.validate_url(url)
+        
+        return jsonify(validation)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -57,7 +112,7 @@ def health_check():
     return jsonify(health)
 
 if __name__ == '__main__':
-    print("Starting Arabic Fake News Detector web server...")
+    print("Starting HaqiqaByUnibyte web server...")
     print("Open http://localhost:8081 in your browser")
     print("Make sure to API server is running on http://localhost:5000")
     app.run(host='127.0.0.1', port=8081, debug=False)
