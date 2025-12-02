@@ -4,7 +4,7 @@ A sophisticated Arabic fake news detection system that leverages advanced machin
 
 ## 🚀 Features
 
-- **Multi-Model Support**: Choose between AraBERT (transformer-based) and XGBoost (traditional ML) models
+- **Multi-Model Support**: Choose between transformer-based and XGBoost (traditional ML) models
 - **Real-Time Analysis**: Instant text classification with confidence scores
 - **Social Media Integration**: Analyze content from Twitter/X, Instagram, and Facebook posts
 - **Content Extraction**: Automatically extract text from social media URLs for analysis
@@ -27,7 +27,7 @@ A sophisticated Arabic fake news detection system that leverages advanced machin
 - **Arabic Text Processing**: Specialized libraries for Arabic script handling
 
 ### Models & Algorithms
-- **AraBERT**: Transformer-based model for Arabic text understanding
+- **Transformer-based Model**: Advanced model for Arabic text understanding
 - **XGBoost**: Gradient boosting for high-performance classification
 - **Feature Engineering**: TF-IDF, n-grams, sentiment analysis, and lexical features
 - **Language Detection**: Automatic detection of Arabic, Darija, French, and English
@@ -104,7 +104,7 @@ The system uses hardcoded configuration for optimal performance. All necessary s
 
 Our models have been trained and evaluated on extensive Arabic news datasets:
 
-### AraBERT Model
+### Transformer-based Model
 - **Accuracy**: 95.2%
 - **F1 Score**: 0.94
 - **Precision**: 93.8%
@@ -119,14 +119,14 @@ Our models have been trained and evaluated on extensive Arabic news datasets:
 ## 🎯 Usage
 
 1. **Enter Arabic Text**: Type or paste Arabic text in the input area
-2. **Select Model**: Choose between AraBERT or XGBoost
+2. **Select Model**: Choose between transformer-based or XGBoost
 3. **Analyze**: Click the analyze button to get classification
 4. **View Results**: See prediction, confidence, and performance metrics
 
 ### Social Media Analysis
 1. **Enter Social Media URL**: Paste Twitter/X, Instagram, or Facebook post URL
 2. **Optional Text**: Add text content if already extracted (optional)
-3. **Select Model**: Choose between AraBERT or XGBoost
+3. **Select Model**: Choose between transformer-based or XGBoost
 4. **Analyze**: Click analyze to extract and analyze social media content
 5. **View Results**: See prediction, confidence, and content extraction details
 
