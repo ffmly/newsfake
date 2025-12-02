@@ -43,8 +43,8 @@ A sophisticated Arabic fake news detection system that leverages advanced machin
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/haqiqa-by-unibyte.git
-   cd haqiqa-by-unibyte
+   [git clone (https://github.com/ffmly/newsfake.git)
+   cd newsfake
    ```
 
 2. **Install dependencies**
